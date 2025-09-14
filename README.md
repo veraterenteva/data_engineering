@@ -6,3 +6,4 @@
 Код загрузчика/запуска вычленителя (закомментирован) находится в main.py
 
 
+https://drive.google.com/drive/folders/1BudgHC7Qf5wdLqyGeA76gvpOwXr7Ln8y
