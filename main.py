@@ -25,7 +25,7 @@ from crawler import Crawler
 
 # OR для получения полного датасета просто загрузкой по ссылке
 
-file_id = "10Gm2LGbOyzTVef3XHA69NDmd-be3H-fD"  # замените на свой
+file_id = "10Gm2LGbOyzTVef3XHA69NDmd-be3H-fD"  
 url = f"https://drive.google.com/uc?export=download&id={file_id}"
 output = "dataset.csv"
 
@@ -38,7 +38,6 @@ def download_file_from_google_drive(file_id, destination):
     token = get_confirm_token(response)
 
     if token:
-        # если нужен токен подтверждения
         params = {'id': file_id, 'confirm': token}
         response = session.get(URL, params=params, stream=True)
 
@@ -57,5 +56,6 @@ def save_response_content(response, destination, chunk_size=32768):
                 f.write(chunk)
 
 download_file_from_google_drive(file_id, "dataset.csv")
+
 
 print("Скачали dataset.csv")
