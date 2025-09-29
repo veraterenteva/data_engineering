@@ -1,16 +1,13 @@
 # data_engineering
 
-## Лабораторная 1
-Я парсила IMDB путём разблра его html страничек, код parser.py и crawler.py приложила. Фич получилось не очень много (11), 
-но данные хорошие. При необходимости могу переключиться на другой датасет или пойти в историю добивания фич руками, 
-однако из html там больше ничего и не вытянуть.
+В качестве данных были выбраны данные IMDB, полученные путём разбора 
+html страниц
 
-Ссылка на то, где лежат данные:
+
+Ссылка на местонахождение данных:
 https://drive.google.com/drive/folders/1BudgHC7Qf5wdLqyGeA76gvpOwXr7Ln8y
 
-## Лабораторная 2
-Первые 10 строк pandas датафрейма, приведённые в формат Markdown (описания убраны из представления, 
-чтобы таблица не разъехалась)
+Пример первых 10 строк dataframe:
 
 | # | Title                          | Genre                       | Year | Cert. | Runtime | Votes  | IMDb | Meta | Description                                                                                           | Stars                                  |
 |---|--------------------------------|-----------------------------|------|-------|---------|--------|------|------|-------------------------------------------------------------------------------------------------------|----------------------------------------|
@@ -24,3 +21,17 @@ https://drive.google.com/drive/folders/1BudgHC7Qf5wdLqyGeA76gvpOwXr7Ln8y
 | 7 | The Killer                     | Action, Adventure, Crime    | 2023 | R     | 118     | 47041  | 7.0  | 72   | An assassin battles his employers and himself on an international manhunt.                            | Michael Fassbender, Tilda Swinton, Charles Parnell, Arliss Howard |
 | 8 | Invincible                     | Animation, Action, Adventure| 2021 | TV-MA | 50      | 172289 | 8.7  | –    | Animated series about a teen whose father is the most powerful superhero on Earth.                    | Steven Yeun, J.K. Simmons, Sandra Oh, Zazie Beetz |
 | 9 | The Gilded Age                 | Drama                       | 2022 | TV-MA | 81      | 29509  | 8.0  | –    | A young woman infiltrates the wealthy Russell family in New York’s Gilded Age.                        | Ben Ahlers, Debra Monk, Kelli O'Hara, Taylor Richardson |
+
+Типы   
+title              string[python]  
+genre              string[python]  
+year                        Int32  
+certificate        string[python]  
+runtime                     Int16  
+user-votes                  Int32  
+imdb-scores               float32  
+metacritic-scores           Int16  
+descriptions       string[python]  
+stars              string[python]  
+start_year                  Int32  
+end_year                    Int32  

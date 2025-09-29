@@ -2,37 +2,32 @@ import requests
 import pandas as pd
 from tabulate import tabulate
 
-file_id = "10Gm2LGbOyzTVef3XHA69NDmd-be3H-fD"  
-output = "dataset.csv"
 
-def download_file_from_google_drive(file_id, destination):
-    URL = "https://docs.google.com/uc?export=download"
+class GoogleDriveLoader:
+    def __init__(self, file_id: str, destination: str = "dataset.csv"):
+        self.file_id = file_id
+        self.destination = destination
+        self.url = "https://docs.google.com/uc?export=download"
 
-    session = requests.Session()
+    def download_file(self):
+        session = requests.Session()
+        response = session.get(self.url, params={"id": self.file_id}, stream=True)
+        token = self._get_confirm_token(response)
 
-    response = session.get(URL, params={'id': file_id}, stream=True)
-    token = get_confirm_token(response)
+        if token:
+            params = {"id": self.file_id, "confirm": token}
+            response = session.get(self.url, params=params, stream=True)
 
-    if token:
-        params = {'id': file_id, 'confirm': token}
-        response = session.get(URL, params=params, stream=True)
+        self.save_response_content(response)
 
-    save_response_content(response, destination)
+    def _get_confirm_token(self, response):
+        for key, value in response.cookies.items():
+            if key.startswith("download_warning"):
+                return value
+        return None
 
-def get_confirm_token(response):
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            return value
-    return None
-
-def save_response_content(response, destination, chunk_size=32768):
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(chunk_size):
-            if chunk:
-                f.write(chunk)
-
-download_file_from_google_drive(file_id, "dataset.csv")
-dataframe = pd.read_csv("dataset.csv")
-
-print(tabulate(dataframe.head(10), headers="keys", tablefmt="pretty"))
-print("Успешно загружен dataset.csv")
+    def save_response_content(self, response, chunk_size=32768):
+        with open(self.destination, "wb") as f:
+            for chunk in response.iter_content(chunk_size):
+                if chunk:
+                    f.write(chunk)
