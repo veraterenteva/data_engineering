@@ -22,7 +22,7 @@ https://drive.google.com/drive/folders/1BudgHC7Qf5wdLqyGeA76gvpOwXr7Ln8y
 | 8 | Invincible                     | Animation, Action, Adventure| 2021 | TV-MA | 50      | 172289 | 8.7  | –    | Animated series about a teen whose father is the most powerful superhero on Earth.                    | Steven Yeun, J.K. Simmons, Sandra Oh, Zazie Beetz |
 | 9 | The Gilded Age                 | Drama                       | 2022 | TV-MA | 81      | 29509  | 8.0  | –    | A young woman infiltrates the wealthy Russell family in New York’s Gilded Age.                        | Ben Ahlers, Debra Monk, Kelli O'Hara, Taylor Richardson |
 
-Типы   
+Типы данных
 title              string[python]  
 genre              string[python]  
 year                        Int32  
