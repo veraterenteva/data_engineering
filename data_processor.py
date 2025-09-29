@@ -3,11 +3,14 @@ import pandas as pd
 from tabulate import tabulate
 from typing import Optional
 
+
 class DataProcessor:
     def __init__(self, dataframe: pd.DataFrame):
         self.df: pd.DataFrame = dataframe.copy()
 
-    def _to_nullable_int(self, series: pd.Series, dtype: str = "Int16", round_vals: bool = False) -> pd.Series:
+    def _to_nullable_int(
+        self, series: pd.Series, dtype: str = "Int16", round_vals: bool = False
+    ) -> pd.Series:
         # попытка прямого преобразования
         s_num = pd.to_numeric(series, errors="coerce")
 
@@ -43,11 +46,15 @@ class DataProcessor:
 
         # imdb-scores to float32
         if "imdb-scores" in self.df.columns:
-            self.df["imdb-scores"] = pd.to_numeric(self.df["imdb-scores"], errors="coerce").astype("float32")
+            self.df["imdb-scores"] = pd.to_numeric(
+                self.df["imdb-scores"], errors="coerce"
+            ).astype("float32")
 
         # metacritic-scores to nullable Int16
         if "metacritic-scores" in self.df.columns:
-            self.df["metacritic-scores"] = self._to_nullable_int(self.df["metacritic-scores"], dtype="Int16", round_vals=True)
+            self.df["metacritic-scores"] = self._to_nullable_int(
+                self.df["metacritic-scores"], dtype="Int16", round_vals=True
+            )
 
         # year to 2 columns (for TV series)
         if "year" in self.df.columns:
@@ -68,11 +75,15 @@ class DataProcessor:
             self.df["year"] = self.df["start_year"]
 
         if "runtime" in self.df.columns:
-            # runtime может быть "122", "122 min" — извлекаем цифры
-            # используем round_vals=False, т.к. минуты — это целые числа
-            self.df["runtime"] = self._to_nullable_int(self.df["runtime"], dtype="Int16", round_vals=False)
+            # runtime может быть "122", "122 min" извлекаем цифры
+            # используем round_vals=False, т.к. минуты это целые числа
+            self.df["runtime"] = self._to_nullable_int(
+                self.df["runtime"], dtype="Int16", round_vals=False
+            )
         if "user-votes" in self.df.columns:
-            self.df["user-votes"] = self._to_nullable_int(self.df["user-votes"], dtype="Int32", round_vals=False)
+            self.df["user-votes"] = self._to_nullable_int(
+                self.df["user-votes"], dtype="Int32", round_vals=False
+            )
 
         # все string в тип string
         for col in self.df.select_dtypes(include=["object"]).columns:
