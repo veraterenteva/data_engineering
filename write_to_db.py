@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import psycopg2
 
+
 # Обёртка над соединением с PostgreSQL
 # Получаем параметры из .env файла
 class PostgresConnector:
@@ -46,7 +47,7 @@ class PostgresConnector:
 
 class DataFrameWriter:
     # Мапим типы pd на типы PostgreSQL
-    DTYPE_MAP = {
+    DEFAULT_DTYPE_MAP = {
         "string[python]": "TEXT",
         "Int16": "SMALLINT",
         "Int32": "INTEGER",
@@ -56,27 +57,42 @@ class DataFrameWriter:
         "boolean": "BOOLEAN",
     }
 
-    def __init__(self, connector: PostgresConnector, table_name: str):
+    FIXED_SCHEMA = {
+        "genre": "TEXT",
+        "year": "INTEGER",
+        "certificate": "TEXT",
+        "runtime": "SMALLINT",
+        "user-votes": "INTEGER",
+        "imdb-scores": "REAL",
+        "metacritic-scores": "SMALLINT",
+        "descriptions": "TEXT",
+        "stars": "TEXT",
+        "start_year": "INTEGER",
+        "end_year": "INTEGER",
+    }
+
+    def __init__(self, connector: PostgresConnector, table_name):
         self.connector = connector
         self.table_name = table_name
 
-    def map_dtype(self, dtype):
+    def map_dtype(self, col, dtype):
+        if col in self.FIXED_SCHEMA:
+            return self.FIXED_SCHEMA[col]
         dtype_str = str(dtype)
-        for k, v in self.DTYPE_MAP.items():
+        for k, v in self.DEFAULT_DTYPE_MAP.items():
             if k.lower() in dtype_str.lower():
                 return v
         return "TEXT"
 
     def write(self, df, limit=100):
-
         df = df.head(limit).replace({pd.NA: None})
 
-        # Удаляем старую таблицу, чтобы при каждом вызове функции не писалось +100 строк
+        # Затираем старые записи, чтобы не писать по 100 повторно
         self.connector.execute(f'DROP TABLE IF EXISTS public."{self.table_name}" CASCADE;')
 
         # Создаём таблицу с корректными типами
         columns_def = ", ".join(
-            [f'"{col}" {self.map_dtype(dtype)}' for col, dtype in df.dtypes.items()]
+            [f'"{col}" {self.map_dtype(col, dtype)}' for col, dtype in df.dtypes.items()]
         )
         self.connector.execute(f'CREATE TABLE public."{self.table_name}" ({columns_def});')
 
@@ -87,10 +103,8 @@ class DataFrameWriter:
 
         for _, row in df.iterrows():
             self.connector.execute(insert_query, tuple(row.values))
-
-        self.connector.commit()
-
         # Проверяем результат
+        self.connector.commit()
         self.validate(df)
 
     # Проверка количества строк
@@ -98,7 +112,6 @@ class DataFrameWriter:
         self.connector.execute(f'SELECT COUNT(*) FROM public."{self.table_name}";')
         count = self.connector.fetchall()[0][0]
         print(f"В таблице {self.table_name}: {count} строк (ожидалось {len(df)})")
-
         # Проверка типов
         self.connector.execute(f"""
             SELECT column_name, data_type
@@ -107,15 +120,14 @@ class DataFrameWriter:
             ORDER BY ordinal_position;
         """)
         db_types = dict(self.connector.fetchall())
-
         # Вывод результатов проверки
         for col, dtype in df.dtypes.items():
-            expected = self.map_dtype(dtype)
+            expected = self.map_dtype(col, dtype)
             actual = db_types.get(col)
             if actual and expected.lower() in actual.lower():
-                print(f"Отлично - {col:<20} - {expected}")
+                print(f"Всё хорошо {col:<20} - {expected}")
             else:
-                print(f"Проблема: {col:<20} - ожидался {expected}, в БД {actual}")
+                print(f"Проблема {col:<20} - ожидался {expected}, в БД {actual}")
 
 
 def write_dataframe_to_db(df, table_name):  # сохраняем сигнатуру
