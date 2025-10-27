@@ -1,12 +1,11 @@
-import os
 from tabulate import tabulate
 from api_example.api_reader import get_object_ids, build_dataframe, COLUMNS_TO_KEEP, LIMIT
 from link_data_retrieval.data_loader import GoogleDriveLoader
 from link_data_retrieval.data_processor import DataProcessor
-import psycopg2
 import pandas as pd
 from write_to_db import write_dataframe_to_db
 from dotenv import load_dotenv
+
 
 def retrieve_by_api():
     object_ids = get_object_ids(LIMIT)
@@ -44,7 +43,7 @@ if __name__ == "__main__":
     load_dotenv()
 
     # 1. Получаем DataFrame
-    df = retrieve_by_disk_link() # тут есть шаг processor, который выполняет очистку и т.д.
+    df = retrieve_by_disk_link()  # тут есть шаг processor, который выполняет очистку и т.д.
 
     # 2. Отправляем данные в PostgreSQL
     write_dataframe_to_db(df, table_name="terenteva")

@@ -1,44 +1,51 @@
 import os
-
 import pandas as pd
 import psycopg2
 
-def map_dtype(dtype, dtype_map):
-    dtype_str = str(dtype)
-    for k, v in dtype_map.items():
-        if k.lower() in dtype_str.lower():
-            return v
-    return "TEXT"
 
-def write_dataframe_to_db(df, table_name):
-    """
-    Записывает DataFrame в таблицу PostgreSQL.
-    Использует переменные окружения для подключения.
-    """
-    PG_HOST = os.environ.get("PG_HOST")
-    PG_PORT = os.environ.get("PG_PORT", 5432)
-    PG_USER = os.environ.get("PG_USER")
-    PG_PASSWORD = os.environ.get("PG_PASSWORD")
-    PG_DBNAME = os.environ.get("PG_DBNAME", "homeworks")
+class PostgresConnector:
+    def __init__(self):
+        self.host = os.getenv("PG_HOST")
+        self.port = os.getenv("PG_PORT", 5432)
+        self.user = os.getenv("PG_USER")
+        self.password = os.getenv("PG_PASSWORD")
+        self.dbname = os.getenv("PG_DBNAME", "homeworks")
 
-    # Проверка обязательных переменных окружения
-    required_vars = [PG_HOST, PG_USER, PG_PASSWORD]
-    if not all(required_vars):
-        raise EnvironmentError(
-            "Не заданы все переменные окружения: PG_HOST, PG_USER, PG_PASSWORD"
+        required_vars = [self.host, self.user, self.password]
+        if not all(required_vars):
+            raise EnvironmentError("Не заданы необходимые env переменные: PG_HOST, PG_USER, PG_PASSWORD")
+
+        self.conn = None
+        self.cur = None
+
+    def __enter__(self):
+        self.conn = psycopg2.connect(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password,
+            database=self.dbname,
         )
+        self.cur = self.conn.cursor()
+        return self
 
-    conn_pg = psycopg2.connect(
-        host=PG_HOST,
-        port=PG_PORT,
-        user=PG_USER,
-        password=PG_PASSWORD,
-        database=PG_DBNAME,
-    )
-    cur = conn_pg.cursor()
+    def execute(self, query, params=None):
+        self.cur.execute(query, params)
 
-    # Маппинг типов pd на типы PostreSQL
-    dtype_map = {
+    def fetchall(self):
+        return self.cur.fetchall()
+
+    def commit(self):
+        self.conn.commit()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cur.close()
+        self.conn.close()
+
+
+class DataFrameWriter:
+    # Мапим типы pd на типы PostgreSQL
+    DTYPE_MAP = {
         "string[python]": "TEXT",
         "Int16": "SMALLINT",
         "Int32": "INTEGER",
@@ -48,54 +55,69 @@ def write_dataframe_to_db(df, table_name):
         "boolean": "BOOLEAN",
     }
 
-    # Если таблица есть, мы её дропаем, чтобы при каждом запуске кода не делать запись 100 строк
-    cur.execute(f'DROP TABLE IF EXISTS public."{table_name}" CASCADE;')
+    def __init__(self, connector: PostgresConnector, table_name: str):
+        self.connector = connector
+        self.table_name = table_name
 
-    columns_def = ", ".join(
-        [f'"{col}" {map_dtype(dtype, dtype_map)}' for col, dtype in df.dtypes.items()]
-    )
-    cur.execute(f'CREATE TABLE public."{table_name}" ({columns_def});')
+    def map_dtype(self, dtype):
+        dtype_str = str(dtype)
+        for k, v in self.DTYPE_MAP.items():
+            if k.lower() in dtype_str.lower():
+                return v
+        return "TEXT"
 
-    # Берём только первые 100 строк
-    data = df.head(100)
-    data = data.replace({pd.NA: None})
+    def write(self, df, limit=100):
 
-    # Создание таблицы с экранированными названиями
-    col_names = ", ".join([f'"{c}"' for c in data.columns])
-    placeholders = ", ".join(["%s"] * len(data.columns))
-    insert_query = f'INSERT INTO public."{table_name}" ({col_names}) VALUES ({placeholders})'
+        df = df.head(limit).replace({pd.NA: None})
 
-    for _, row in data.iterrows():
-        cur.execute(insert_query, tuple(row.values))
+        # Удаляем старую таблицу, чтобы при каждом вызове функции не писалось +100 строк
+        self.connector.execute(f'DROP TABLE IF EXISTS public."{self.table_name}" CASCADE;')
 
-    conn_pg.commit()
-    print(f"Таблица {table_name} создана и заполнена {len(data)} строками.") # выводим, на случай, если записали меньше
+        # Создаём таблицу с корректными типами
+        columns_def = ", ".join(
+            [f'"{col}" {self.map_dtype(dtype)}' for col, dtype in df.dtypes.items()]
+        )
+        self.connector.execute(f'CREATE TABLE public."{self.table_name}" ({columns_def});')
+
+        # Записываем данные под экранированием, иначе есть таблицы со служебными именами PostgreSQL
+        col_names = ", ".join([f'"{c}"' for c in df.columns])
+        placeholders = ", ".join(["%s"] * len(df.columns))
+        insert_query = f'INSERT INTO public."{self.table_name}" ({col_names}) VALUES ({placeholders})'
+
+        for _, row in df.iterrows():
+            self.connector.execute(insert_query, tuple(row.values))
+
+        self.connector.commit()
+
+        # Проверяем результат
+        self.validate(df)
 
     # Проверка количества строк
-    cur.execute(f'SELECT COUNT(*) FROM public."{table_name}";')
-    count = cur.fetchone()[0]
-    if count != len(data):
-        print(f"Не дописали, ожидалось {len(data)}")
-    else:
-        print(f"Количество строк совпадает с записанным нами {count}")
+    def validate(self, df):
+        self.connector.execute(f'SELECT COUNT(*) FROM public."{self.table_name}";')
+        count = self.connector.fetchall()[0][0]
+        print(f"В таблице {self.table_name}: {count} строк (ожидалось {len(df)})")
 
-    # Проверка типов в БД
-    cur.execute(f"""
+        # Проверка типов
+        self.connector.execute(f"""
             SELECT column_name, data_type
             FROM information_schema.columns
-            WHERE table_name = '{table_name}'
+            WHERE table_name = '{self.table_name}'
             ORDER BY ordinal_position;
         """)
-    db_types = dict(cur.fetchall())
+        db_types = dict(self.connector.fetchall())
 
-    print("Проверка типов данных:")
-    for col, dtype in df.dtypes.items():
-        expected = map_dtype(dtype, dtype_map)
-        actual = db_types.get(col)
-        if actual and expected.lower() in actual.lower():
-            print(f"{col:<20} → {expected}")
-        else:
-            print(f"{col:<20} → ожидался {expected}, в БД {actual}")
+        # Вывод результатов проверки
+        for col, dtype in df.dtypes.items():
+            expected = self.map_dtype(dtype)
+            actual = db_types.get(col)
+            if actual and expected.lower() in actual.lower():
+                print(f"Отлично - {col:<20} - {expected}")
+            else:
+                print(f"Проблема: {col:<20} - ожидался {expected}, в БД {actual}")
 
-    cur.close()
-    conn_pg.close()
+
+def write_dataframe_to_db(df, table_name):  # сохраняем сигнатуру
+    with PostgresConnector() as connector:
+        writer = DataFrameWriter(connector, table_name)
+        writer.write(df)
