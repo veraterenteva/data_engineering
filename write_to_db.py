@@ -2,7 +2,8 @@ import os
 import pandas as pd
 import psycopg2
 
-
+# Обёртка над соединением с PostgreSQL
+# Получаем параметры из .env файла
 class PostgresConnector:
     def __init__(self):
         self.host = os.getenv("PG_HOST")
