@@ -1,5 +1,14 @@
 import os
+
+import pandas as pd
 import psycopg2
+
+def map_dtype(dtype, dtype_map):
+    dtype_str = str(dtype)
+    for k, v in dtype_map.items():
+        if k.lower() in dtype_str.lower():
+            return v
+    return "TEXT"
 
 def write_dataframe_to_db(df, table_name):
     """
@@ -28,27 +37,65 @@ def write_dataframe_to_db(df, table_name):
     )
     cur = conn_pg.cursor()
 
+    # Маппинг типов pd на типы PostreSQL
+    dtype_map = {
+        "string[python]": "TEXT",
+        "Int16": "SMALLINT",
+        "Int32": "INTEGER",
+        "Int64": "BIGINT",
+        "float32": "REAL",
+        "float64": "DOUBLE PRECISION",
+        "boolean": "BOOLEAN",
+    }
+
+    # Если таблица есть, мы её дропаем, чтобы при каждом запуске кода не делать запись 100 строк
+    cur.execute(f'DROP TABLE IF EXISTS public."{table_name}" CASCADE;')
+
+    columns_def = ", ".join(
+        [f'"{col}" {map_dtype(dtype, dtype_map)}' for col, dtype in df.dtypes.items()]
+    )
+    cur.execute(f'CREATE TABLE public."{table_name}" ({columns_def});')
+
     # Берём только первые 100 строк
     data = df.head(100)
+    data = data.replace({pd.NA: None})
 
-    # Создаём таблицу, экранируем названия столбцов
-    columns = ", ".join([f'"{col}" TEXT' for col in data.columns])
-    cur.execute(f'CREATE TABLE IF NOT EXISTS public."{table_name}" ({columns});')
-
+    # Создание таблицы с экранированными названиями
     col_names = ", ".join([f'"{c}"' for c in data.columns])
     placeholders = ", ".join(["%s"] * len(data.columns))
     insert_query = f'INSERT INTO public."{table_name}" ({col_names}) VALUES ({placeholders})'
 
     for _, row in data.iterrows():
-        cur.execute(insert_query, tuple(map(str, row.values)))
+        cur.execute(insert_query, tuple(row.values))
 
     conn_pg.commit()
-    print(f"Успешно добавлено {len(data)} строк в таблицу {table_name}")
+    print(f"Таблица {table_name} создана и заполнена {len(data)} строками.") # выводим, на случай, если записали меньше
 
-    # Проверка количества записей
+    # Проверка количества строк
     cur.execute(f'SELECT COUNT(*) FROM public."{table_name}";')
     count = cur.fetchone()[0]
-    print(f"Всего строк в таблице {table_name}: {count}")
+    if count != len(data):
+        print(f"Не дописали, ожидалось {len(data)}")
+    else:
+        print(f"Количество строк совпадает с записанным нами {count}")
+
+    # Проверка типов в БД
+    cur.execute(f"""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = '{table_name}'
+            ORDER BY ordinal_position;
+        """)
+    db_types = dict(cur.fetchall())
+
+    print("Проверка типов данных:")
+    for col, dtype in df.dtypes.items():
+        expected = map_dtype(dtype, dtype_map)
+        actual = db_types.get(col)
+        if actual and expected.lower() in actual.lower():
+            print(f"{col:<20} → {expected}")
+        else:
+            print(f"{col:<20} → ожидался {expected}, в БД {actual}")
 
     cur.close()
     conn_pg.close()
