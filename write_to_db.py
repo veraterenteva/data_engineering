@@ -1,59 +1,91 @@
 import os
+import re
 import pandas as pd
-from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import create_engine, inspect, text, MetaData, Table, select, func
+from sqlalchemy.exc import SQLAlchemyError, OperationalError
 
 
 class ParquetToPostgresLoader:
     def __init__(self):
-        # Настройки подключения из окружения
-        self.host = os.getenv("PG_HOST")
-        self.port = os.getenv("PG_PORT", 5432)
-        self.user = os.getenv("PG_USER")
-        self.password = os.getenv("PG_PASSWORD")
-        self.dbname = os.getenv("PG_DBNAME", "homeworks")
-        self.table_name = os.getenv("PG_TABLE", "dataset")  # фамилию не палим
+        self.table_name = os.environ.get("PG_TABLE")
+        self._validate_table_name()
+        self.engine = self._create_engine()
+        self._check_connection()
 
-        if not all([self.host, self.user, self.password]):
+    def _validate_table_name(self):  # Вспомогательная функция проверки имени таблицы для доп защиты
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.table_name):
+            raise ValueError(f"Недопустимое имя таблицы: {self.table_name}")
+
+    def _create_engine(self):
+        PG_HOST = os.environ.get("PG_HOST")
+        PG_PORT = os.environ.get("PG_PORT", "5432")
+        PG_USER = os.environ.get("PG_USER")
+        PG_PASSWORD = os.environ.get("PG_PASSWORD")
+        PG_DBNAME = os.environ.get("PG_DBNAME", "homeworks")
+
+        if not all([PG_HOST, PG_USER, PG_PASSWORD]):
             raise EnvironmentError(
-                "Не заданы все необходимые переменные окружения: PG_HOST, PG_USER, PG_PASSWORD"
+                "Не заданы все переменные окружения: PG_HOST, PG_USER, PG_PASSWORD"
             )
 
-        # Подключение через SQLAlchemy
-        self.engine: Engine = create_engine(
-            f"postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{self.port}/{self.dbname}",
-            isolation_level="AUTOCOMMIT",  # чтобы не зависали транзакции
+        return create_engine(
+            f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DBNAME}"
         )
 
-        # Проверяем соединение сразу при инициализации
-        self._test_connection()
-
-    def _test_connection(self):
+    def _check_connection(self):
         try:
             with self.engine.connect() as conn:
-                conn.execute(text("SELECT 1;"))
-            print(f"Успешное подключение к PostgreSQL")
-        except SQLAlchemyError as e:
+                conn.execute(text("SELECT 1"))
+            print("Соединение с PostgreSQL установлено")
+        except OperationalError as e:
             raise ConnectionError(f"Ошибка подключения к PostgreSQL: {e}")
 
     def load_parquet(self, parquet_path, limit=100):
         df = pd.read_parquet(parquet_path).head(limit)
+        print(f"Загрузка {len(df)} строк из {parquet_path} в таблицу {self.table_name}")
 
-        # Запись в таблицу, безопасно (SQLAlchemy сам экранирует имена)
-        # Пересоздаём таблицу для того, чтобы при перезапуске кода не записывалось ещё 100 записей
-        df.to_sql(self.table_name, self.engine, if_exists="replace", index=False)
+        # Пересоздаём таблицу полностью, чтобы не дописывать 100 строк при каждом перезапуске
+        df.to_sql(
+            name=self.table_name,
+            con=self.engine,
+            if_exists="replace",
+            index=False,
+            method="multi",
+        )
 
-        print(f"Загружено {len(df)} строк из {parquet_path} в таблицу {self.table_name}")
+        print(f"Таблица {self.table_name} успешно создана и заполнена.")
 
-        # После записи проводим валидацию
+        if "id" in df.columns:
+            self._add_primary_key()
+
         self.validate_load(df)
 
-    def validate_load(self, df):
+    def _add_primary_key(self):
+        try:
+            with self.engine.begin() as conn:
+                conn.execute(text(f'ALTER TABLE "{self.table_name}" ADD PRIMARY KEY ("id");'))
+            print("Поле 'id' установлено как PRIMARY KEY.")
+        except SQLAlchemyError as e:
+            print(f"Не удалось установить PRIMARY KEY: {e}")
+
+    def validate_load(self, df: pd.DataFrame):
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.table_name):
+            raise ValueError(f"Недопустимое имя таблицы: {self.table_name}")
+
         with self.engine.connect() as conn:
-            # Соединение и так будет закрыто, но мы сделаем это явно так же
-            # Проверка количества строк
-            count_query = text(f'SELECT COUNT(*) FROM "{self.table_name}";')
+            # Проверяем, что соединение реально установлено
+            try:
+                conn.execute(text("SELECT 1"))
+                print("Соединение с базой данных успешно установлено.")
+            except Exception as e:
+                raise ConnectionError(f"Ошибка соединения с БД: {e}")
+
+            # Отражаем таблицу безопасно
+            metadata = MetaData()
+            metadata.reflect(bind=self.engine, only=[self.table_name])
+            table = Table(self.table_name, metadata, autoload_with=self.engine)
+
+            count_query = select(func.count()).select_from(table)
             count_in_db = conn.execute(count_query).scalar()
 
             print("Проверка количества записей:")

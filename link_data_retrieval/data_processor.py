@@ -89,6 +89,10 @@ class DataProcessor:
         for col in self.df.select_dtypes(include=["object"]).columns:
             self.df[col] = self.df[col].astype("string")
 
+        # добавляем уникальный ID (1, 2, 3, ...)
+        self.df.insert(0, "id", range(1, len(self.df) + 1))
+        self.df["id"] = self.df["id"].astype("Int32")
+
         return self.df
 
     def preview(self, n: int = 10) -> None:
