@@ -3,7 +3,7 @@ from api_example.api_reader import get_object_ids, build_dataframe, COLUMNS_TO_K
 from link_data_retrieval.data_loader import GoogleDriveLoader
 from link_data_retrieval.data_processor import DataProcessor
 import pandas as pd
-from write_to_db import write_dataframe_to_db
+from write_to_db import ParquetToPostgresLoader
 from dotenv import load_dotenv
 
 
@@ -46,4 +46,5 @@ if __name__ == "__main__":
     df = retrieve_by_disk_link()  # тут есть шаг processor, который выполняет очистку и т.д.
 
     # 2. Отправляем данные в PostgreSQL
-    write_dataframe_to_db(df, table_name="terenteva")
+    loader = ParquetToPostgresLoader()
+    loader.run("dataset.parquet")
