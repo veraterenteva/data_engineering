@@ -1,4 +1,10 @@
 # data_engineering
+## EDA
+Exploratory Data Analysis проводится для BigSolDB 2.0 - датасета растворимостей
+[Рендер ноутбука](https://hub.2i2c.mybinder.org/user/veraterenteva-data_engineering-ii3cf730/notebooks/EDA/EDA.ipynb):
+
+[Ссылка на местонахождение данных
+](https://zenodo.org/records/15094979/files/BigSolDBv2.0.csv?download=1)
 
 ## Парсинг IMDB
 В качестве данных были выбраны данные IMDB, полученные путём разбора 
