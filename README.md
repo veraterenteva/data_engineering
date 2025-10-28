@@ -1,6 +1,6 @@
 # data_engineering
 ## EDA
-Exploratory Data Analysis проводится для BigSolDB 2.0 - датасета растворимостей
+Exploratory Data Analysis проводится для BigSolDB 2.0 - датасета растворимостей  
 [Рендер ноутбука](https://hub.2i2c.mybinder.org/user/veraterenteva-data_engineering-ii3cf730/notebooks/EDA/EDA.ipynb):
 
 [Ссылка на местонахождение данных
