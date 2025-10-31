@@ -1,0 +1,56 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv/
+venv/
+env/
+ENV/
+.venv/
+.ipynb_checkpoints/
+
+# Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Data folders (local storage)
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.db
+*.sqlite
+*.log
+
+# Build / distribution artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Test / coverage
+.coverage
+htmlcov/
+pytest_cache/
+
+# Notebooks / experiments
+notebooks/
+*.ipynb
+
+# Logs
+logs/
+*.log
+
+# Local configurations
+.env.local
+.env.test
+.env.dev
