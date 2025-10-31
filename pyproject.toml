@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "etl"
-version = "0.1.0"
-description = "Cookiecutter-style ETL pipeline"
-authors = [{ name = "Your Name" }]
+version = "1.1.1"
+description = "Movies ETL pipeline"
+authors = [{ name = "Vera Terenteva" }]
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
