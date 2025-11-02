@@ -42,10 +42,6 @@ dist/
 htmlcov/
 pytest_cache/
 
-# Notebooks / experiments
-notebooks/
-*.ipynb
-
 # Logs
 logs/
 *.log
