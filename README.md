@@ -9,7 +9,7 @@
    
 ---
 **EDA (но химический датасет)**
-https://nbviewer.org/github/veraterenteva/data_engineering/blob/main/experiments/EDA/EDA.ipynb  
+https://nbviewer.org/github/veraterenteva/data_engineering/blob/main/experiments/EDA/EDA.ipynb  (после реструктуризации кода он так вообще перестал загружаться, я думала, это вопрос времени, но он капитально не хочет!)
       
 ---    
     
