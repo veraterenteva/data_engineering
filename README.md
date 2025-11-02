@@ -6,7 +6,7 @@
 </div>
 В качестве данных были выбраны данные IMDB, полученные путём разбора html страниц сайта [IMDB](https://www.imdb.com/) . Примеры парсинга можно увидеть внутри проекта /experiments/data_retrieval/parse_example. Полученный датасет был размещён по ссылке на [GoogleDisk](https://drive.google.com/drive/folders/1BudgHC7Qf5wdLqyGeA76gvpOwXr7Ln8y) и использовался как начальная точка для ETL пайплайна. В ходе исполнения extract данные загружаются для последующей очистки в формат .csv, проходят этап transform с приведением типов и парсингом столбцов в соответствии с ожидаемым типом (например, Runtime) и на этапе load загружаются в базу данных PostgreSQL      
 ---
-EDA (но химический датасет)  
+**EDA (но химический датасет)**
 https://nbviewer.org/github/veraterenteva/data_engineering/blob/main/experiments/EDA/EDA.ipynb  
       
 ---    
